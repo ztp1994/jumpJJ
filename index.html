@@ -55,7 +55,7 @@
         <div class="container mx-auto px-4 py-4 flex justify-between items-center">
             <div class="flex items-center space-x-2">
                 <i class="fa fa-line-chart text-primary text-2xl"></i>
-                <h1 class="text-xl font-bold text-dark">跳绳统计</h1>
+                <h1 class="text-xl font-bold text-dark">姐头跳绳统计</h1>
             </div>
             <button id="addRecordBtn" class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-full flex items-center space-x-2 btn-hover">
                 <i class="fa fa-plus-circle"></i>
@@ -433,7 +433,7 @@
                 
                 // 设置默认日期为今天
                 const today = new Date();
-                const formattedDate = today.toISOString().split('T')[0];
+                const formattedDate = this.formatDate(today);
                 
                 const dateInput = document.getElementById('date');
                 if (!dateInput.value) {
@@ -564,6 +564,9 @@
                         // 检查是否为未来日期
                         const selectedDate = new Date(date);
                         const today = new Date();
+                        
+                        // 将两个日期都设置为午夜零点进行比较
+                        selectedDate.setHours(0, 0, 0, 0);
                         today.setHours(0, 0, 0, 0);
                         
                         if (selectedDate > today) {
@@ -595,6 +598,14 @@
                         this.showToast('记录已保存');
                     });
                 }
+            }
+            
+            // 格式化日期为YYYY-MM-DD格式
+            formatDate(date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
             }
             
             // 显示提示消息
