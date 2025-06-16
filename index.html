@@ -433,9 +433,10 @@
                 
                 // 设置默认日期为今天
                 const today = new Date();
+                const formattedDate = today.toISOString().split('T')[0];
+                
                 const dateInput = document.getElementById('date');
                 if (!dateInput.value) {
-                    const formattedDate = today.toISOString().split('T')[0];
                     dateInput.value = formattedDate;
                 }
                 
@@ -499,75 +500,101 @@
             
             // 初始化所有功能
             init() {
+                // 确保DOM完全加载后再初始化
+                if (document.readyState !== 'loading') {
+                    this._initComponents();
+                } else {
+                    document.addEventListener('DOMContentLoaded', () => {
+                        this._initComponents();
+                    });
+                }
+            }
+            
+            // 实际初始化组件
+            _initComponents() {
                 this.initChart();
                 this.updateHistoryList();
                 this.updateStats();
                 this.setupTimeFilterButtons();
                 
                 // 添加记录按钮事件
-                document.getElementById('addRecordBtn').addEventListener('click', () => {
-                    this.openModal();
-                });
+                const addRecordBtn = document.getElementById('addRecordBtn');
+                if (addRecordBtn) {
+                    addRecordBtn.addEventListener('click', () => {
+                        this.openModal();
+                    });
+                } else {
+                    console.error('Add record button not found!');
+                }
                 
                 // 关闭模态框按钮事件
-                document.getElementById('closeModal').addEventListener('click', () => {
-                    this.closeModal();
-                });
+                const closeModalBtn = document.getElementById('closeModal');
+                if (closeModalBtn) {
+                    closeModalBtn.addEventListener('click', () => {
+                        this.closeModal();
+                    });
+                }
                 
                 // 点击模态框外部关闭
-                document.getElementById('recordModal').addEventListener('click', (e) => {
-                    if (e.target === document.getElementById('recordModal')) {
-                        this.closeModal();
-                    }
-                });
+                const recordModal = document.getElementById('recordModal');
+                if (recordModal) {
+                    recordModal.addEventListener('click', (e) => {
+                        if (e.target === recordModal) {
+                            this.closeModal();
+                        }
+                    });
+                }
                 
                 // 表单提交事件
-                document.getElementById('recordForm').addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    
-                    const date = document.getElementById('date').value;
-                    const jumps = document.getElementById('jumps').value;
-                    const weight = document.getElementById('weight').value;
-                    
-                    // 验证输入
-                    if (!date || !jumps || !weight) {
-                        this.showToast('请填写所有字段');
-                        return;
-                    }
-                    
-                    // 检查是否为未来日期
-                    const selectedDate = new Date(date);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    
-                    if (selectedDate > today) {
-                        this.showToast('不能录入未来日期的数据');
-                        return;
-                    }
-                    
-                    if (parseInt(jumps) <= 0) {
-                        this.showToast('跳绳次数必须大于0');
-                        return;
-                    }
-                    
-                    if (parseFloat(weight) <= 0) {
-                        this.showToast('体重必须大于0');
-                        return;
-                    }
-                    
-                    // 确保数据正确解析
-                    const parsedJumps = parseInt(jumps);
-                    const parsedWeight = parseFloat(weight);
-                    
-                    this.addRecord(date, parsedJumps, parsedWeight);
-                    this.updateChart();
-                    this.updateHistoryList();
-                    this.updateStats();
-                    this.closeModal();
-                    
-                    // 添加成功提示
-                    this.showToast('记录已保存');
-                });
+                const recordForm = document.getElementById('recordForm');
+                if (recordForm) {
+                    recordForm.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        
+                        const date = document.getElementById('date').value;
+                        const jumps = document.getElementById('jumps').value;
+                        const weight = document.getElementById('weight').value;
+                        
+                        // 验证输入
+                        if (!date || !jumps || !weight) {
+                            this.showToast('请填写所有字段');
+                            return;
+                        }
+                        
+                        // 检查是否为未来日期
+                        const selectedDate = new Date(date);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        
+                        if (selectedDate > today) {
+                            this.showToast('不能录入未来日期的数据');
+                            return;
+                        }
+                        
+                        if (parseInt(jumps) <= 0) {
+                            this.showToast('跳绳次数必须大于0');
+                            return;
+                        }
+                        
+                        if (parseFloat(weight) <= 0) {
+                            this.showToast('体重必须大于0');
+                            return;
+                        }
+                        
+                        // 确保数据正确解析
+                        const parsedJumps = parseInt(jumps);
+                        const parsedWeight = parseFloat(weight);
+                        
+                        this.addRecord(date, parsedJumps, parsedWeight);
+                        this.updateChart();
+                        this.updateHistoryList();
+                        this.updateStats();
+                        this.closeModal();
+                        
+                        // 添加成功提示
+                        this.showToast('记录已保存');
+                    });
+                }
             }
             
             // 显示提示消息
