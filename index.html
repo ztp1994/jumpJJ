@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日跳绳统计</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    
+    <!-- 配置Tailwind自定义颜色和字体 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4ade80', // 绿色作为主色调，代表健康和活力
+                        secondary: '#f97316', // 橙色作为辅助色，代表能量
+                        light: '#f8fafc',
+                        dark: '#1e293b'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <!-- 自定义工具类 -->
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-shadow {
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+            }
+            .btn-hover {
+                transition: all 0.3s ease;
+            }
+            .btn-hover:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 15px -3px rgba(74, 222, 128, 0.3);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-b from-green-50 to-blue-50 min-h-screen font-sans">
+    <!-- 页面头部 -->
+    <header class="sticky top-0 z-50 bg-white/80 backdrop-blur-md shadow-sm">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-line-chart text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-dark">跳绳统计</h1>
+            </div>
+            <button id="addRecordBtn" class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-full flex items-center space-x-2 btn-hover">
+                <i class="fa fa-plus-circle"></i>
+                <span>录入</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-6">
+        <!-- 统计卡片 -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="bg-white rounded-xl p-5 card-shadow transform transition-all duration-300 hover:scale-[1.02]">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-sm text-gray-500">本周平均</h3>
+                    <i class="fa fa-bar-chart text-primary"></i>
+                </div>
+                <p class="text-3xl font-bold text-dark" id="weeklyAvg">0</p>
+                <p class="text-xs text-gray-500">次/天</p>
+            </div>
+            <div class="bg-white rounded-xl p-5 card-shadow transform transition-all duration-300 hover:scale-[1.02]">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-sm text-gray-500">当前体重</h3>
+                    <i class="fa fa-balance-scale text-secondary"></i>
+                </div>
+                <p class="text-3xl font-bold text-dark" id="currentWeight">0</p>
+                <p class="text-xs text-gray-500">kg</p>
+            </div>
+        </div>
+
+        <!-- 图表容器 -->
+        <div class="bg-white rounded-xl p-4 card-shadow mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-dark">跳绳与体重趋势</h2>
+                <div class="flex space-x-2">
+                    <button class="time-filter-btn bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1 rounded-full text-sm" data-period="week">周</button>
+                    <button class="time-filter-btn bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1 rounded-full text-sm" data-period="month">月</button>
+                    <button class="time-filter-btn bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1 rounded-full text-sm" data-period="year">年</button>
+                </div>
+            </div>
+            <div class="h-[300px]" id="chartContainer"></div>
+        </div>
+
+        <!-- 历史记录列表 -->
+        <div class="bg-white rounded-xl p-4 card-shadow">
+            <h2 class="text-lg font-semibold text-dark mb-4">历史记录</h2>
+            <div class="space-y-3" id="historyList">
+                <!-- 历史记录将通过JavaScript动态添加 -->
+                <div class="text-center text-gray-500 py-10">
+                    <i class="fa fa-calendar-o text-4xl mb-2 opacity-30"></i>
+                    <p>暂无记录，点击右上角录入数据</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-white/80 backdrop-blur-md py-4 mt-8">
+        <div class="container mx-auto px-4 text-center text-gray-500 text-sm">
+            <p>每日跳绳统计 &copy; 2025</p>
+        </div>
+    </footer>
+
+    <!-- 录入数据模态框 -->
+    <div id="recordModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full transform transition-all duration-300 scale-95 opacity-0" id="modalContent">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-dark">录入今日数据</h3>
+                <button id="closeModal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="recordForm">
+                <div class="space-y-4">
+                    <div>
+                        <label for="date" class="block text-sm font-medium text-gray-700 mb-1">日期</label>
+                        <input type="date" id="date" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary" value="">
+                    </div>
+                    <div>
+                        <label for="jumps" class="block text-sm font-medium text-gray-700 mb-1">跳绳次数</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                                <i class="fa fa-bicycle"></i>
+                            </span>
+                            <input type="number" id="jumps" placeholder="输入跳绳次数" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="weight" class="block text-sm font-medium text-gray-700 mb-1">体重 (kg)</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                                <i class="fa fa-balance-scale"></i>
+                            </span>
+                            <input type="number" step="0.1" id="weight" placeholder="输入体重" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary" required>
+                        </div>
+                    </div>
+                    <div class="pt-2">
+                        <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg font-medium btn-hover">
+                            保存记录
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 数据存储和管理
+        class JumpDataManager {
+            constructor() {
+                this.storageKey = 'jumpStatisticsData';
+                this.data = this.loadData();
+                this.chart = null;
+                this.currentPeriod = 'week';
+            }
+            
+            // 从本地存储加载数据
+            loadData() {
+                try {
+                    const savedData = localStorage.getItem(this.storageKey);
+                    return savedData ? JSON.parse(savedData) : [];
+                } catch (error) {
+                    console.error('Failed to load data from localStorage:', error);
+                    return [];
+                }
+            }
+            
+            // 保存数据到本地存储（JSON格式）
+            saveData() {
+                try {
+                    const jsonData = JSON.stringify(this.data);
+                    localStorage.setItem(this.storageKey, jsonData);
+                } catch (error) {
+                    console.error('Failed to save data to localStorage:', error);
+                }
+            }
+            
+            // 添加新记录
+            addRecord(date, jumps, weight) {
+                // 检查是否已有该日期的记录
+                const existingIndex = this.data.findIndex(record => record.date === date);
+                
+                const newRecord = {
+                    date,
+                    jumps: parseInt(jumps),
+                    weight: parseFloat(weight)
+                };
+                
+                if (existingIndex !== -1) {
+                    // 更新现有记录
+                    this.data[existingIndex] = newRecord;
+                } else {
+                    // 添加新记录
+                    this.data.push(newRecord);
+                    // 按日期排序
+                    this.data.sort((a, b) => new Date(a.date) - new Date(b.date));
+                }
+                
+                this.saveData();
+                return newRecord;
+            }
+            
+            // 获取特定时间段的数据
+            getPeriodData(period) {
+                const today = new Date();
+                let startDate;
+                
+                switch(period) {
+                    case 'week':
+                        startDate = new Date(today);
+                        startDate.setDate(today.getDate() - 6);
+                        break;
+                    case 'month':
+                        startDate = new Date(today);
+                        startDate.setMonth(today.getMonth() - 1);
+                        break;
+                    case 'year':
+                        startDate = new Date(today);
+                        startDate.setFullYear(today.getFullYear() - 1);
+                        break;
+                    default:
+                        startDate = new Date(today);
+                        startDate.setDate(today.getDate() - 6);
+                }
+                
+                return this.data.filter(record => {
+                    const recordDate = new Date(record.date);
+                    return recordDate >= startDate && recordDate <= today;
+                });
+            }
+            
+            // 计算每周平均跳绳次数
+            calculateWeeklyAverage() {
+                const weekData = this.getPeriodData('week');
+                if (weekData.length === 0) return 0;
+                
+                const totalJumps = weekData.reduce((sum, record) => sum + record.jumps, 0);
+                return Math.round(totalJumps / weekData.length);
+            }
+            
+            // 获取当前体重
+            getCurrentWeight() {
+                if (this.data.length === 0) return 0;
+                return this.data[this.data.length - 1].weight;
+            }
+            
+            // 初始化图表
+            initChart() {
+                const chartDom = document.getElementById('chartContainer');
+                this.chart = echarts.init(chartDom);
+                
+                this.updateChart();
+                
+                // 监听窗口大小变化，调整图表
+                window.addEventListener('resize', () => {
+                    this.chart.resize();
+                });
+            }
+            
+            // 更新图表数据
+            updateChart() {
+                const periodData = this.getPeriodData(this.currentPeriod);
+                
+                // 准备数据
+                const dates = periodData.map(record => {
+                    const date = new Date(record.date);
+                    return `${date.getMonth() + 1}/${date.getDate()}`;
+                });
+                const jumps = periodData.map(record => record.jumps);
+                const weights = periodData.map(record => record.weight);
+                
+                // 图表配置
+                const option = {
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: {
+                            type: 'cross',
+                            crossStyle: {
+                                color: '#999'
+                            }
+                        }
+                    },
+                    grid: {
+                        left: '3%',
+                        right: '4%',
+                        bottom: '3%',
+                        containLabel: true
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: dates,
+                        axisTick: {
+                            alignWithLabel: true
+                        },
+                        axisLabel: {
+                            interval: 0,
+                            rotate: 45
+                        }
+                    },
+                    yAxis: [
+                        {
+                            type: 'value',
+                            name: '跳绳次数',
+                            min: 0,
+                            axisLabel: {
+                                formatter: '{value}'
+                            }
+                        },
+                        {
+                            type: 'value',
+                            name: '体重(kg)',
+                            min: Math.max(0, Math.min(...weights) - 5),
+                            axisLabel: {
+                                formatter: '{value} kg'
+                            }
+                        }
+                    ],
+                    series: [
+                        {
+                            name: '跳绳次数',
+                            type: 'bar',
+                            data: jumps,
+                            color: '#4ade80',
+                            label: {
+                                show: true,
+                                position: 'top'
+                            }
+                        },
+                        {
+                            name: '体重',
+                            type: 'line',
+                            yAxisIndex: 1,
+                            data: weights,
+                            color: '#f97316',
+                            label: {
+                                show: true,
+                                position: 'top'
+                            }
+                        }
+                    ]
+                };
+                
+                // 使用配置项显示图表
+                this.chart.setOption(option);
+            }
+            
+            // 更新历史记录列表
+            updateHistoryList() {
+                const historyList = document.getElementById('historyList');
+                
+                if (this.data.length === 0) {
+                    historyList.innerHTML = `
+                        <div class="text-center text-gray-500 py-10">
+                            <i class="fa fa-calendar-o text-4xl mb-2 opacity-30"></i>
+                            <p>暂无记录，点击右上角录入数据</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // 清空列表
+                historyList.innerHTML = '';
+                
+                // 按日期降序排列
+                const sortedData = [...this.data].sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                // 添加每条记录
+                sortedData.forEach(record => {
+                    const date = new Date(record.date);
+                    const formattedDate = `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+                    
+                    const item = document.createElement('div');
+                    item.className = 'flex justify-between items-center p-3 border-b border-gray-100 last:border-0';
+                    item.innerHTML = `
+                        <div>
+                            <p class="font-medium text-dark">${formattedDate}</p>
+                            <p class="text-sm text-gray-500">跳绳: ${record.jumps} 次</p>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="text-secondary font-medium mr-2">${record.weight} kg</span>
+                            <button class="edit-record text-gray-400 hover:text-primary" data-date="${record.date}">
+                                <i class="fa fa-pencil"></i>
+                            </button>
+                        </div>
+                    `;
+                    historyList.appendChild(item);
+                    
+                    // 添加编辑按钮事件
+                    item.querySelector('.edit-record').addEventListener('click', () => {
+                        this.openEditForm(record.date);
+                    });
+                });
+            }
+            
+            // 打开编辑表单
+            openEditForm(date) {
+                const record = this.data.find(record => record.date === date);
+                if (!record) return;
+                
+                const dateInput = document.getElementById('date');
+                const jumpsInput = document.getElementById('jumps');
+                const weightInput = document.getElementById('weight');
+                
+                dateInput.value = record.date;
+                jumpsInput.value = record.jumps;
+                weightInput.value = record.weight;
+                
+                this.openModal();
+            }
+            
+            // 打开模态框
+            openModal() {
+                const modal = document.getElementById('recordModal');
+                const modalContent = document.getElementById('modalContent');
+                
+                // 设置默认日期为今天
+                const today = new Date();
+                const dateInput = document.getElementById('date');
+                if (!dateInput.value) {
+                    const formattedDate = today.toISOString().split('T')[0];
+                    dateInput.value = formattedDate;
+                }
+                
+                // 设置日期最大值为今天（防止未来日期）
+                dateInput.max = formattedDate;
+                
+                // 显示模态框
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                
+                // 添加动画效果
+                setTimeout(() => {
+                    modalContent.classList.remove('scale-95', 'opacity-0');
+                    modalContent.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            }
+            
+            // 关闭模态框
+            closeModal() {
+                const modal = document.getElementById('recordModal');
+                const modalContent = document.getElementById('modalContent');
+                
+                // 添加关闭动画
+                modalContent.classList.remove('scale-100', 'opacity-100');
+                modalContent.classList.add('scale-95', 'opacity-0');
+                
+                setTimeout(() => {
+                    modal.classList.remove('flex');
+                    modal.classList.add('hidden');
+                    
+                    // 重置表单
+                    document.getElementById('recordForm').reset();
+                }, 300);
+            }
+            
+            // 设置时间过滤按钮事件
+            setupTimeFilterButtons() {
+                const filterButtons = document.querySelectorAll('.time-filter-btn');
+                filterButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        // 更新按钮样式
+                        filterButtons.forEach(btn => {
+                            btn.classList.remove('bg-primary/10', 'text-primary');
+                            btn.classList.add('bg-gray-100', 'text-gray-600');
+                        });
+                        button.classList.remove('bg-gray-100', 'text-gray-600');
+                        button.classList.add('bg-primary/10', 'text-primary');
+                        
+                        // 更新时间段
+                        this.currentPeriod = button.dataset.period;
+                        this.updateChart();
+                    });
+                });
+            }
+            
+            // 更新统计数据
+            updateStats() {
+                document.getElementById('weeklyAvg').textContent = this.calculateWeeklyAverage();
+                document.getElementById('currentWeight').textContent = this.getCurrentWeight();
+            }
+            
+            // 初始化所有功能
+            init() {
+                this.initChart();
+                this.updateHistoryList();
+                this.updateStats();
+                this.setupTimeFilterButtons();
+                
+                // 添加记录按钮事件
+                document.getElementById('addRecordBtn').addEventListener('click', () => {
+                    this.openModal();
+                });
+                
+                // 关闭模态框按钮事件
+                document.getElementById('closeModal').addEventListener('click', () => {
+                    this.closeModal();
+                });
+                
+                // 点击模态框外部关闭
+                document.getElementById('recordModal').addEventListener('click', (e) => {
+                    if (e.target === document.getElementById('recordModal')) {
+                        this.closeModal();
+                    }
+                });
+                
+                // 表单提交事件
+                document.getElementById('recordForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    const date = document.getElementById('date').value;
+                    const jumps = document.getElementById('jumps').value;
+                    const weight = document.getElementById('weight').value;
+                    
+                    // 验证输入
+                    if (!date || !jumps || !weight) {
+                        this.showToast('请填写所有字段');
+                        return;
+                    }
+                    
+                    // 检查是否为未来日期
+                    const selectedDate = new Date(date);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    
+                    if (selectedDate > today) {
+                        this.showToast('不能录入未来日期的数据');
+                        return;
+                    }
+                    
+                    if (parseInt(jumps) <= 0) {
+                        this.showToast('跳绳次数必须大于0');
+                        return;
+                    }
+                    
+                    if (parseFloat(weight) <= 0) {
+                        this.showToast('体重必须大于0');
+                        return;
+                    }
+                    
+                    // 确保数据正确解析
+                    const parsedJumps = parseInt(jumps);
+                    const parsedWeight = parseFloat(weight);
+                    
+                    this.addRecord(date, parsedJumps, parsedWeight);
+                    this.updateChart();
+                    this.updateHistoryList();
+                    this.updateStats();
+                    this.closeModal();
+                    
+                    // 添加成功提示
+                    this.showToast('记录已保存');
+                });
+            }
+            
+            // 显示提示消息
+            showToast(message) {
+                // 创建toast元素
+                const toast = document.createElement('div');
+                toast.className = 'fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-dark text-white px-6 py-3 rounded-full shadow-lg z-50 opacity-0 transition-opacity duration-300';
+                toast.textContent = message;
+                
+                // 添加到页面
+                document.body.appendChild(toast);
+                
+                // 显示动画
+                setTimeout(() => {
+                    toast.classList.remove('opacity-0');
+                    toast.classList.add('opacity-100');
+                }, 10);
+                
+                // 自动隐藏
+                setTimeout(() => {
+                    toast.classList.remove('opacity-100');
+                    toast.classList.add('opacity-0');
+                    
+                    // 移除元素
+                    setTimeout(() => {
+                        document.body.removeChild(toast);
+                    }, 300);
+                }, 2000);
+            }
+        }
+        
+        // 当页面加载完成后初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            const dataManager = new JumpDataManager();
+            dataManager.init();
+        });
+    </script>
+</body>
+</html>
+    
